@@ -257,7 +257,7 @@
                             "?zip (substr(str(?town), 33) as ?city) (substr(str(?stat), 33) as ?state) ?point \n" + 
                             "(substr(str(?fuel_type), 33) as ?fuel) (round(?out / 3600000000) as ?Output_MWh) \n" + 
                             "(round(?co2 / 1000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) where {\n" +
-                            "GRAPH <http://enipedia.tudelft.nl> {\n"+ 
+                            "GRAPH <http://enipedia.tudelft.nl/wiki/> {\n"+ 
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || owner == "") ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
