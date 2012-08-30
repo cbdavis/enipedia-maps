@@ -175,9 +175,6 @@
                 controlDiv.style.fontFamily = 'Arial,sans-serif';
                 controlDiv.style.fontSize = '10pt';
 
-                //TODO is there a smarter way of doing this?  
-                //cboEnipediaCountries needs be accessible in this function, can't place this html in the body since it won't find it on page load.
-
                 controlDiv.appendChild(document.getElementById('everything'));
 /*
                 controlDiv.appendChild(document.createTextNode("\u00a0\u00a0\u00a0"));
@@ -243,6 +240,11 @@
             if (owner == undefined)
                 owner = "";
             selectedOwner = owner;
+
+            /**CD - patching code to reference named graph of http://enipedia.tudelft.nl
+            * This will be changed to http://enipedia.tudelft.nl/wiki/ once the site is upgraded.
+            * This fixes the problem of duplicate markers.
+            */
             
             $.ajax({
                     url: 'http://enipedia.tudelft.nl/sparqltest2',
@@ -254,25 +256,25 @@
                             "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" + 
                             "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" + 
                             "select (substr(str(?ppl), 33) as ?wiki) ?name (substr(str(?own), 33) as ?ownerenc) ?owner \n" + 
-                            "?zip (substr(str(?town), 33) as ?city) (substr(str(?stat), 33) as ?state) ?point \n" + 
-                            "(substr(str(?fuel_type), 33) as ?fuel) (round(?out / 3600000000) as ?Output_MWh) \n" + 
-                            "(round(?co2 / 1000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) where {\n" +
-                            "GRAPH <http://enipedia.tudelft.nl/wiki/> {\n"+ 
+                            "?zip (substr(str(?town), 33) as ?city) (substr(str(?stat), 33) as ?state) ?Output_MWh ?point \n" + 
+                            "(substr(str(?fuel_type), 33) as ?fuel) \n" + 
+                            "(round(?co2 / 1000000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) where {\n" + 
+                            "GRAPH <http://enipedia.tudelft.nl/wiki/> {\n"+
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || owner == "") ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
                             "  ?ppl prop:Ownercompany ?own .\n" + 
                             "  ?ppl prop:City ?town .\n" + 
                             "  ?ppl prop:Point ?point .\n" + 
-                            "  ?ppl prop:Energyoutput-23J ?out .\n" + 
-                            "  ?ppl prop:Carbonemissions-23kg ?co2 .\n" + 
-                            "  ?ppl prop:Intensity-23kg ?intensity .\n" + 
+                            "  ?ppl prop:Annual_Energyoutput_MWh ?Output_MWh .\n" + 
+                            "  ?ppl prop:Annual_Carbonemissions_kg ?co2 .\n" + 
+                            "  ?ppl prop:Intensity_kg_CO2_per_MWh_elec ?intensity .\n" + 
                             "  OPTIONAL{?ppl prop:Primary_fuel_type ?fuel_type} .\n" + 
                             "  OPTIONAL{?ppl prop:State ?stat} .\n" + 
                             "  OPTIONAL{?ppl prop:Zipcode ?zip} .\n" + 
                             "  OPTIONAL{?own rdfs:label ?owner} .\n" + 
                             (owner != "" ? "  FILTER( REGEX(str(?owner), \".*" + owner + ".*\",\"i\") ) .\n" : "") +
-			    "}.\n" +
+                            "}.\n" +
                             "} order by ?ppl",
                     output: "json" 
                 },
@@ -415,14 +417,25 @@
                 
                 fuelCounts[fuelGroup.toLowerCase()]++;
 
-                var coords = list[i].point.value.split(', ');
-                var latitude = coords[0].indexOf('N') > 0 ? coords[0].replace(' N','') : "-"+coords[0].replace(' S','');
-                var longitude = coords[1].indexOf('E') > 0 ? coords[1].replace(' E','') : "-"+coords[1].replace(' W','');
+                var coords = list[i].point.value.split(',');
+                //CD - RDF export has been patched for the new version of SMW since it didn't export coordinates by default
+                // This patch just includes the numeric lat/long values separated by a comma, and N/S/E/W are not included.
+                // This may change depending on what the SMW devs do.
+                //var latitude = coords[0].indexOf('N') > 0 ? coords[0].replace(' N','') : "-"+coords[0].replace(' S','');
+                //var longitude = coords[1].indexOf('E') > 0 ? coords[1].replace(' E','') : "-"+coords[1].replace(' W','');
+                var latitude = coords[0];
+                var longitude = coords[1];
                 myLatLng = new google.maps.LatLng(latitude, longitude);
                 
                 // scale marker according to power output
                 var output = list[i].Output_MWh ? list[i].Output_MWh.value : 0;
-                var factor = 1 + ((output == 0 ? 0 : Math.log(output)/Math.LN10) - 5) / 10;
+
+                //var factor = 1 + ((output == 0 ? 0 : Math.log(output)/Math.LN10) - 5) / 10;
+                //CD - trying different scaling factor, units for values returned from query are different now
+                // 1e8 is a bit bigger than the Three Gorges Plant
+                //This (ideally) sets the scale of the icons between 0.25 and 1.25
+                var factor = 0.25 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/8) * 1.0);
+
                 markerImage = {url: fuelIcon, size: {width:32*factor, height:37*factor}, scaledSize: {width:32*factor, height:37*factor} }
                 markerOptions = {position: myLatLng, title: list[i].name.value, icon: markerImage};
                 
