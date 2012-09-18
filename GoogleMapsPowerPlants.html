@@ -147,25 +147,34 @@ The advanced menu needs to be made (somewhat) more presentable, and then it will
             var myOptions = {
                 zoom: 2,
                 center: new google.maps.LatLng(20, 0),
-                mapTypeId: google.maps.MapTypeId.HYBRID
+                mapTypeId: google.maps.MapTypeId.HYBRID,
+                mapTypeControlOptions: { position: google.maps.ControlPosition.RIGHT_TOP }
             };
 
-/*              
+            map = new google.maps.Map(document.getElementById('map_canvas'), myOptions);
+
+            /* Code below works for display ItoWorld Map of the electricity network
+            * It's not very visible against the Google Maps satellite imagery, so we should 
+            * think about a background that would allow for a higher contrast.
+            * Should also display the ItoWorld legend + credits.
+            * This would also be a nice feature for an advanced control panel
+            * that would allow people to turn on and off different map layers.
+            **/
+            /*
             myITOOptions = {
                     getTileUrl: function(coord, zoom) {
-                        return "http://t" + Math.floor(Math.random()*4) + ".beta.itoworld.com/4/770fc0c2b467b4cb16c330d996e2ddd2/" 
+                        return "http://t" + Math.floor(Math.random()*4) + ".beta.itoworld.com/4/770fc0c2b467b4cb16c330d996e2ddd2/"
                                 + zoom + "/" + coord.x + "/" + coord.y + ".png";
                     },
                     tileSize: new google.maps.Size(256, 256),
                     isPng: true,
-                    opacity: 0.5,
+                    opacity: 1,
                     alt: "ITOWorld Power Transmission",
                     name: "ITOWorld"
             }
 
             map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(myITOOptions));
-*/
-            map = new google.maps.Map(document.getElementById('map_canvas'), myOptions);
+            */
 
 	    input = document.getElementById('searchTextField');
  	    autocomplete = new google.maps.places.Autocomplete(input);
@@ -226,7 +235,7 @@ The advanced menu needs to be made (somewhat) more presentable, and then it will
 */
 
                 $.ajax({
-                    url: 'http://enipedia.tudelft.nl/sparqltest2',
+                    url: 'http://enipedia.tudelft.nl/sparql',
                     data: {
                     query: "BASE <http://enipedia.tudelft.nl/wiki/>\n" + 
                         "PREFIX prop: <http://enipedia.tudelft.nl/wiki/Property:>\n" + 
@@ -288,7 +297,7 @@ The advanced menu needs to be made (somewhat) more presentable, and then it will
 	    }
             
             $.ajax({
-                    url: 'http://enipedia.tudelft.nl/sparqltest2',
+                    url: 'http://enipedia.tudelft.nl/sparql',
                     data: {
                         query: "BASE <http://enipedia.tudelft.nl/wiki/>\n" + 
                             "PREFIX a: <http://enipedia.tudelft.nl/wiki/>\n" + 
@@ -320,7 +329,9 @@ The advanced menu needs to be made (somewhat) more presentable, and then it will
                             "  OPTIONAL{?own rdfs:label ?owner} .\n" + 
                             (owner != "" ? "  FILTER( REGEX(str(?owner), \".*" + owner + ".*\",\"i\") ) .\n" : "") +
                             "}.\n" +
-                            "} order by ?ppl",
+                            "} order by DESC(?Output_MWh)",
+                    // order by DESC(?Output_MWh) makes the smallest plants to be drawn on top, so that they aren't hidden by the larger plants.
+                    // TODO not sure if this works as expected 
                     output: "json" 
                 },
                 dataType: 'jsonp',
@@ -477,7 +488,7 @@ The advanced menu needs to be made (somewhat) more presentable, and then it will
                 //var factor = 1 + ((output == 0 ? 0 : Math.log(output)/Math.LN10) - 5) / 10;
                 //CD - trying different scaling factor, units for values returned from query are different now
                 // 1e8 is a bit bigger than the Three Gorges Plant
-                //This (ideally) sets the scale of the icons between 0.25 and 1.25
+                //This (ideally) sets the scale of the icons between 0.5 and 1.25
                 var factor = 0.5 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/8) * 0.75);
 
                 markerImage = {url: fuelIcon, size: {width:32*factor, height:37*factor}, scaledSize: {width:32*factor, height:37*factor} }
@@ -632,5 +643,3 @@ The advanced menu needs to be made (somewhat) more presentable, and then it will
 	</div>
     </body>
 </html>
-
-
