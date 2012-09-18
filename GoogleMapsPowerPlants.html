@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<!--
+TODO, ideas, etc:
+The code now contains the beginnings of an advanced menu that allows people to display all the power plants within the bounds of the current map view.
+The next step is to allow for a csv download.  Need to figure out what Excel uses by default (semicolon delimited?) for people to directly open it up.
+Cool features would be summations of power production by source, etc.
+The advanced menu needs to be made (somewhat) more presentable, and then it will be posted on Enipedia
+-->
 <html>
     <head>
         <title>Enipedia Maps Sandbox</title>
@@ -46,10 +53,11 @@
 
         </style>
 
-        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
+        <!--<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>-->
+	<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
         <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
         <script src="http://code.jquery.com/ui/1.8.23/jquery-ui.min.js" type="text/javascript"></script>
-        <script src="http://jquery-ui.googlecode.com/svn/tags/latest/external/jquery.bgiframe-2.1.2.min.js" type="text/javascript"></script>
+        <script src="http://jquery-ui.googlecode.com/svn/tags/latest/external/jquery.bgiframe-2.1.2.js" type="text/javascript"></script>
         <script src="http://jquery-ui.googlecode.com/svn/tags/latest/ui/minified/i18n/jquery-ui-i18n.min.js" type="text/javascript"></script>
         <script src="http://jawj.github.com/OverlappingMarkerSpiderfier/bin/oms.min.js" type="text/javascript"></script>
 
@@ -57,8 +65,10 @@
         
         <script type="text/javascript">
 
-
         var map;
+	var input;
+	var autocomplete;
+
         var markersEnipedia = [];
         var markersEUETS = [];
         var oms;
@@ -125,7 +135,7 @@
                             if (ui.item) {
                                 window.selectedOwner = ui.item.label;
                                 if ($("#enipedia_country").prop("value") == "" || $("#enipedia_country").prop("value") == undefined)
-                                    load_ppl_enipedia("", ui.item.label, true);
+                                    load_ppl_enipedia("", ui.item.label, false, true);
                                 else
                                     matchMarkersToSelection(window.markersEnipedia);
                             }
@@ -157,6 +167,10 @@
 */
             map = new google.maps.Map(document.getElementById('map_canvas'), myOptions);
 
+	    input = document.getElementById('searchTextField');
+ 	    autocomplete = new google.maps.places.Autocomplete(input);
+	    autocomplete.bindTo('bounds', map);
+
             var controlDiv = createControls();
             map.controls[google.maps.ControlPosition.TOP].push(controlDiv);
             
@@ -166,6 +180,27 @@
             oms.legColors.usual[google.maps.MapTypeId.HYBRID] = oms.legColors.usual[google.maps.MapTypeId.SATELLITE] = "#0ff";
             oms.legColors.highlighted[google.maps.MapTypeId.HYBRID] = oms.legColors.highlighted[google.maps.MapTypeId.SATELLITE] = "#f0f";
 
+
+	//Autocomplete listener
+        google.maps.event.addListener(autocomplete, 'place_changed', function() {
+          var place = autocomplete.getPlace();
+          if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+	    map.setZoom(12);
+          } else { //does this code actually get called?
+            map.setCenter(place.geometry.location);
+            map.setZoom(12);  
+          }
+
+          var address = '';
+          if (place.address_components) {
+            address = [
+              (place.address_components[0] && place.address_components[0].short_name || ''),
+              (place.address_components[1] && place.address_components[1].short_name || ''),
+              (place.address_components[2] && place.address_components[2].short_name || '')
+            ].join(' ');
+          }
+        });
                 
             function createControls() {
             
@@ -223,7 +258,7 @@
                 });
                 
                 if (queryString["enipedia_country"] || queryString["enipedia_owner"])
-                    load_ppl_enipedia(queryString["enipedia_country"], queryString["enipedia_owner"], true)
+                    load_ppl_enipedia(queryString["enipedia_country"], queryString["enipedia_owner"], false, true)
 
                 return controlDiv;
             }
@@ -231,8 +266,9 @@
         });
 
 
-        function load_ppl_enipedia(country, owner, zoom) {
-
+        function load_ppl_enipedia(country, owner, useBounds, zoom) {
+	    var lat1, lat2, lon1, lon2;
+	    //alert(map.getBounds().toString());
             clearMarkers(markersEnipedia);
             
             if (country == undefined)
@@ -241,10 +277,15 @@
                 owner = "";
             selectedOwner = owner;
 
-            /**CD - patching code to reference named graph of http://enipedia.tudelft.nl
-            * This will be changed to http://enipedia.tudelft.nl/wiki/ once the site is upgraded.
-            * This fixes the problem of duplicate markers.
-            */
+	    //useBounds has precedence over country and owner - TODO think about how to do subselections intelligently without confusing users
+	    if (useBounds == true){
+		country = "";
+		owner = "";
+		lat1 = map.getBounds().getNorthEast().lat()
+		lon1 = map.getBounds().getNorthEast().lng()
+		lat2 = map.getBounds().getSouthWest().lat()
+		lon2 = map.getBounds().getSouthWest().lng()
+	    }
             
             $.ajax({
                     url: 'http://enipedia.tudelft.nl/sparqltest2',
@@ -261,11 +302,15 @@
                             "(round(?co2 / 1000000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) where {\n" + 
                             "GRAPH <http://enipedia.tudelft.nl/wiki/> {\n"+
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
-                            ((country != "" || owner == "") ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
+                            ((country != "" || (owner == "" && useBounds == false)) ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
                             "  ?ppl prop:Ownercompany ?own .\n" + 
                             "  ?ppl prop:City ?town .\n" + 
                             "  ?ppl prop:Point ?point .\n" + 
+                            "  ?ppl prop:Latitude ?lat .\n" +
+                            "  ?ppl prop:Longitude ?lon .\n" +  
+			    ((useBounds == true) ? "FILTER(?lat < " + lat1 + " && ?lat > " + lat2 + ") .\n" : "") +
+			    ((useBounds == true) ? "FILTER(?lon < " + lon1 + " && ?lon > " + lon2 + ") .\n" : "") +
                             "  ?ppl prop:Annual_Energyoutput_MWh ?Output_MWh .\n" + 
                             "  ?ppl prop:Annual_Carbonemissions_kg ?co2 .\n" + 
                             "  ?ppl prop:Intensity_kg_CO2_per_MWh_elec ?intensity .\n" + 
@@ -358,7 +403,6 @@
         }
 
         function drop_markers_enipedia(data, zoom){
-
             //reset count for number of power plants, since we're probably looking at a different country
             for (var cnt in fuelCounts)
                 fuelCounts[cnt] = 0;        
@@ -434,7 +478,7 @@
                 //CD - trying different scaling factor, units for values returned from query are different now
                 // 1e8 is a bit bigger than the Three Gorges Plant
                 //This (ideally) sets the scale of the icons between 0.25 and 1.25
-                var factor = 0.25 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/8) * 1.0);
+                var factor = 0.5 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/8) * 0.75);
 
                 markerImage = {url: fuelIcon, size: {width:32*factor, height:37*factor}, scaledSize: {width:32*factor, height:37*factor} }
                 markerOptions = {position: myLatLng, title: list[i].name.value, icon: markerImage};
@@ -473,80 +517,119 @@
             infowindowEnipedia.open(map, marker);
         }
 
+	function toggleAdvancedTable() {
+		<!-- get the td with id=advanced_table -->
+		var row = document.getElementById("row_containing_advanced_table");
+		if (row.style.display == '') {
+			row.style.display = 'none';
+			document.getElementById("AdvancedTableToggleText").innerHTML = "(Click for Advanced Menu)";			
+		} else {
+			row.style.display = '';
+			document.getElementById("AdvancedTableToggleText").innerHTML = "(Click for Default Menu)";
+		}
+	}
+
+	function loadAllMarkersInView() {
+		var requiredMinimumZoomForDownload = 6;
+		if (map.zoom >= requiredMinimumZoomForDownload) {
+			//alert(map.getBounds().toString());
+			load_ppl_enipedia("", "", true, true);
+		} else {
+			alert("zoom in " + (requiredMinimumZoomForDownload - map.zoom) + " more times to be able to load markers");
+		}
+	}
+
         </script>
     </head>
     <body>
         <div id="map_canvas"></div>
-        <table id='everything'>
-            <tr>
-                <td>
-                    <table id=iconTable border=0 cellpadding=0 cellspacing=0>
-                        <tr>            
-                            <td><label for="enipedia_countries">Country: </label></td>
-                            <td><select id="enipedia_countries" style="width: 200px" onchange="load_ppl_enipedia(this.value, document.getElementById('enipedia_owner').value, true)"/></td>
-                        </tr>
-                        <tr>            
-                            <td><label for="enipedia_owner">Owner: </label></td>
-                            <td><input id="enipedia_owner" style="width: 195px" onkeypress="if (event.keyCode == 13) load_ppl_enipedia(document.getElementById('enipedia_countries').value, this.value, true)" /></td>
-                        </tr>
-                    </table>
-                </td>
-                
-                <td>    
-                    <table id=iconTable border=0 cellpadding=0 cellspacing=0>
-                        <tr>            
-                            <td><img id="biomass_img" onclick="toggle('Biomass', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/2/2a/Biomass_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png" src="http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png" class="tooltip" title="Biomass"></td>
-                            <td><img id="biogas_img" onclick="toggle('Biogas', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/4/4a/Biogas_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png" src="http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png" class="tooltip" title="Biogas"></td>
-                            <td><img id="coal_img" onclick="toggle('Coal', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/3/3e/Coal_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/a/a7/Coal.png" src="http://enipedia.tudelft.nl/enipedia/images/a/a7/Coal.png" class="tooltip" title="Coal"></td>
-                            <td><img id="gas_img" onclick="toggle('Gas', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/b/bd/Gas_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/7/78/Gas.png" src="http://enipedia.tudelft.nl/enipedia/images/7/78/Gas.png" class="tooltip" title="Gas"></td>
-                            <td><img id="geothermal_img" onclick="toggle('Geothermal', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/c/c0/Geothermal_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/0/05/Geothermal.png" src="http://enipedia.tudelft.nl/enipedia/images/0/05/Geothermal.png" class="tooltip" title="Geothermal"></td>
-                            <td><img id="oil_img" onclick="toggle('Oil', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/d/d7/Oil_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/0/06/Oil.png" src="http://enipedia.tudelft.nl/enipedia/images/0/06/Oil.png" class="tooltip" title="Oil"></td>
-                            <td><img id="hydro_img" onclick="toggle('Hydro', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/f/fa/Hydro_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/0/08/Hydro.png" src="http://enipedia.tudelft.nl/enipedia/images/0/08/Hydro.png" class="tooltip" title="Hydro"></td>
-                            <td><img id="nuclear_img" onclick="toggle('Nuclear', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/4/4f/Nuclear_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/4/42/Nuclear.png" src="http://enipedia.tudelft.nl/enipedia/images/4/42/Nuclear.png" class="tooltip" title="Nuclear"></td>
-                            <td><img id="solar_img" onclick="toggle('Solar', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/7/78/Solar_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/2/25/Solar.png" src="http://enipedia.tudelft.nl/enipedia/images/2/25/Solar.png" class="tooltip" title="Solar"></td>
-                            <td><img id="waste_img" onclick="toggle('Waste', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/f/fa/Waste_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/1/12/Waste.png" src="http://enipedia.tudelft.nl/enipedia/images/1/12/Waste.png" class="tooltip" title="Waste"></td>
-                            <td><img id="wave_img" onclick="toggle('Wave', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/d/de/Wave_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/e/e9/Wave.png" src="http://enipedia.tudelft.nl/enipedia/images/e/e9/Wave.png" class="tooltip" title="Wave"></td>
-                            <td><img id="wind_img" onclick="toggle('Wind', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/3/3f/Wind_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/b/bf/Wind.png" src="http://enipedia.tudelft.nl/enipedia/images/b/bf/Wind.png" class="tooltip" title="Wind"></td>
-                            <td><img id="unknown_img" onclick="toggle('Unknown', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/b/b4/Unknown_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/d/dd/Unknown.png" src="http://enipedia.tudelft.nl/enipedia/images/d/dd/Unknown.png" class="tooltip" title="Unknown"></td>
-                        </tr>
-                        <tr>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='biomass_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='biogas_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='coal_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='gas_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='geothermal_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='oil_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='hydro_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='nuclear_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='solar_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='waste_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='wave_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='wind_count'></div></td>
-                            <td class="fuelCheckBoxTD"><div class='fuelCount' id='unknown_count'></div></td>
-                        </tr>
-                    </table>
-                </td>
 
-                <td>
-                    <table>
-                        <tr>
-                            <td class="fuelCheckBoxTD"><input onchange="show_meta('fossil',this.checked)" id="show_fossil" type="checkbox" checked="false" title="Fossil"></td>
-                            <td class="fuelLabelTD"><label for="show_fossil">Fossil</label></td>
-                        </tr>
-                        <tr>
-                            <td class="fuelCheckBoxTD"><input onchange="show_meta('nuclear',this.checked)" id="show_nuclear" type="checkbox" checked="false" title="Nuclear"></td>
-                            <td class="fuelLabelTD"><label for="show_nuclear">Nuclear</label></td>
-                            <td class="fuelCheckBoxTD"><input onchange="show_all(this.checked)" id="show_all" type="checkbox" checked="false" title="All"></td>
-                            <td class="fuelLabelTD"><label for="show_all">All</label></td>
-                        </tr>
-                        <tr>
-                            <td class="fuelCheckBoxTD"><input onchange="show_meta('renewable',this.checked)" id="show_renewable" type="checkbox" checked="false" title="Renewable"></td>
-                            <td class="fuelLabelTD"><label for="show_renewable">Renewable</label></td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
+	<!-- normal controls -->
+	<div id="main_table">
+		<table id='everything' border=0 cellpadding=0 cellspacing=0>
+		    <tr id="row_containing_advanced_table" style="display: none; "> <!-- hide advanced menu here -->
+			<td colspan=3 align=center height=0>
+				<table><tr><td><div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div></td></tr></table>
+
+			</td>
+		    </tr>
+		    <tr>
+		        <td>
+		            <table id=iconTable border=0 cellpadding=0 cellspacing=0>
+		                <tr>            
+		                    <td><label for="enipedia_countries">Country: </label></td>
+		                    <td><select id="enipedia_countries" style="width: 200px" onchange="load_ppl_enipedia(this.value, document.getElementById('enipedia_owner').value, false, true)"/></td>
+		                </tr>
+		                <tr>            
+		                    <td><label for="enipedia_owner">Owner: </label></td>
+		                    <td><input id="enipedia_owner" style="width: 195px" onkeypress="if (event.keyCode == 13) load_ppl_enipedia(document.getElementById('enipedia_countries').value, this.value, false, true)" /></td>
+		                </tr>
+				<tr>
+					<td>Location:</td>
+					<td><input id="searchTextField" type="text" style="width: 195px"></td>
+				</tr>
+		            </table>
+		        </td>
+		        <td>    
+		            <table id=iconTable border=0 cellpadding=0 cellspacing=0>
+				<tr>
+					<td colspan=13 align=center onclick="toggleAdvancedTable()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div id="AdvancedTableToggleText">(Click for Advanced Menu)</div></i><hr></td>
+				</tr>
+		                <tr>            
+		                    <td><img id="biomass_img" onclick="toggle('Biomass', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/2/2a/Biomass_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png" src="http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png" class="tooltip" title="Biomass"></td>
+		                    <td><img id="biogas_img" onclick="toggle('Biogas', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/4/4a/Biogas_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png" src="http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png" class="tooltip" title="Biogas"></td>
+		                    <td><img id="coal_img" onclick="toggle('Coal', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/3/3e/Coal_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/a/a7/Coal.png" src="http://enipedia.tudelft.nl/enipedia/images/a/a7/Coal.png" class="tooltip" title="Coal"></td>
+		                    <td><img id="gas_img" onclick="toggle('Gas', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/b/bd/Gas_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/7/78/Gas.png" src="http://enipedia.tudelft.nl/enipedia/images/7/78/Gas.png" class="tooltip" title="Gas"></td>
+		                    <td><img id="geothermal_img" onclick="toggle('Geothermal', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/c/c0/Geothermal_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/0/05/Geothermal.png" src="http://enipedia.tudelft.nl/enipedia/images/0/05/Geothermal.png" class="tooltip" title="Geothermal"></td>
+		                    <td><img id="oil_img" onclick="toggle('Oil', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/d/d7/Oil_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/0/06/Oil.png" src="http://enipedia.tudelft.nl/enipedia/images/0/06/Oil.png" class="tooltip" title="Oil"></td>
+		                    <td><img id="hydro_img" onclick="toggle('Hydro', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/f/fa/Hydro_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/0/08/Hydro.png" src="http://enipedia.tudelft.nl/enipedia/images/0/08/Hydro.png" class="tooltip" title="Hydro"></td>
+		                    <td><img id="nuclear_img" onclick="toggle('Nuclear', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/4/4f/Nuclear_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/4/42/Nuclear.png" src="http://enipedia.tudelft.nl/enipedia/images/4/42/Nuclear.png" class="tooltip" title="Nuclear"></td>
+		                    <td><img id="solar_img" onclick="toggle('Solar', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/7/78/Solar_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/2/25/Solar.png" src="http://enipedia.tudelft.nl/enipedia/images/2/25/Solar.png" class="tooltip" title="Solar"></td>
+		                    <td><img id="waste_img" onclick="toggle('Waste', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/f/fa/Waste_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/1/12/Waste.png" src="http://enipedia.tudelft.nl/enipedia/images/1/12/Waste.png" class="tooltip" title="Waste"></td>
+		                    <td><img id="wave_img" onclick="toggle('Wave', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/d/de/Wave_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/e/e9/Wave.png" src="http://enipedia.tudelft.nl/enipedia/images/e/e9/Wave.png" class="tooltip" title="Wave"></td>
+		                    <td><img id="wind_img" onclick="toggle('Wind', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/3/3f/Wind_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/b/bf/Wind.png" src="http://enipedia.tudelft.nl/enipedia/images/b/bf/Wind.png" class="tooltip" title="Wind"></td>
+		                    <td><img id="unknown_img" onclick="toggle('Unknown', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/b/b4/Unknown_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/d/dd/Unknown.png" src="http://enipedia.tudelft.nl/enipedia/images/d/dd/Unknown.png" class="tooltip" title="Unknown"></td>
+		                </tr>
+		                <tr>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='biomass_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='biogas_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='coal_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='gas_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='geothermal_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='oil_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='hydro_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='nuclear_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='solar_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='waste_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='wave_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='wind_count'></div></td>
+		                    <td class="fuelCheckBoxTD"><div class='fuelCount' id='unknown_count'></div></td>
+		                </tr>
+		            </table>
+		        </td>
+
+		        <td>
+		            <table>
+		                <tr>
+		                    <td class="fuelCheckBoxTD"><input onchange="show_meta('fossil',this.checked)" id="show_fossil" type="checkbox" checked="false" title="Fossil"></td>
+		                    <td class="fuelLabelTD"><label for="show_fossil">Fossil</label></td>
+		                </tr>
+		                <tr>
+		                    <td class="fuelCheckBoxTD"><input onchange="show_meta('nuclear',this.checked)" id="show_nuclear" type="checkbox" checked="false" title="Nuclear"></td>
+		                    <td class="fuelLabelTD"><label for="show_nuclear">Nuclear</label></td>
+		                    <td class="fuelCheckBoxTD"><input onchange="show_all(this.checked)" id="show_all" type="checkbox" checked="false" title="All"></td>
+		                    <td class="fuelLabelTD"><label for="show_all">All</label></td>
+		                </tr>
+		                <tr>
+		                    <td class="fuelCheckBoxTD"><input onchange="show_meta('renewable',this.checked)" id="show_renewable" type="checkbox" checked="false" title="Renewable"></td>
+		                    <td class="fuelLabelTD"><label for="show_renewable">Renewable</label></td>
+		                </tr>
+		            </table>
+		        </td>
+		    </tr>
+		</table>
+	</div>
+	</div>
     </body>
 </html>
 
