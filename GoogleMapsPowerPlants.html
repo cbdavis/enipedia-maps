@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <!--
 TODO, ideas, etc:
@@ -63,7 +64,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         </style>
 
         <!--<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>-->
-        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3.9&sensor=false&libraries=places"></script>
+        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3&sensor=false&libraries=places"></script>
         <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
         <script src="http://code.jquery.com/ui/1.8.23/jquery-ui.min.js" type="text/javascript"></script>
         <script src="http://jquery-ui.googlecode.com/svn/tags/latest/external/jquery.bgiframe-2.1.2.js" type="text/javascript"></script>
@@ -96,6 +97,20 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 
         var data = new Object();
         var selectedOwner = "";        
+
+        function inrange(min,number,max){
+            if (!isNaN(number) && (number >= min) && (number <= max)) return true
+            else return false
+        }
+        
+        function valid_coords(number_lat,number_lng) {
+            if (inrange(-90,number_lat,90) && inrange(-180,number_lng,180)) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
 
         $(function(){
 
@@ -162,8 +177,8 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 center: new google.maps.LatLng(20, 0),
                 mapTypeControlOptions: {
                     mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN, OSM],
-                    //style: google.maps.MapTypeControlStyle.DROPDOWN_MENU, 
-                    style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, 
+                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU, 
+                    //style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, 
                     position: google.maps.ControlPosition.TOP_LEFT
                 }, 
                 mapTypeId: google.maps.MapTypeId.HYBRID
@@ -199,8 +214,14 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                     name: "ITOWorld"
             }
 
+            //This needs to be optional - probably turn on by default so that people know it's available
             map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(myITOOptions));
-
+            //If we want to turn this off, we need to first see if it's turned on
+            /*
+            if(map.overlayMapTypes.getAt(0).name == "ITOWorld"){
+                alert("using ITOWorld layer");
+                //map.overlayMapTypes.removeAt(0, new google.maps.ImageMapType(myITOOptions));
+            }*/
             
 
         //Allow users to search for places
@@ -221,7 +242,20 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         //Autocomplete listener
         google.maps.event.addListener(autocomplete, 'place_changed', function() {
           var place = autocomplete.getPlace();
-          if (place.geometry.viewport) {
+
+          //test if the user is entering in coordinates - autocomplete doesn't seem to be able to handle this
+          var userText = place.name;
+          userText = userText.replace(',', ' ');
+          userText = userText.replace(/ +(?= )/g,'');
+          var lat = userText.split(" ")[0];
+          var lon = userText.split(" ")[1];
+
+          //see if the user is trying to enter in coordinates
+          if (valid_coords(lat,lon)){
+            map.setCenter(new google.maps.LatLng(lat, lon));
+            map.setZoom(10);  
+            load_ppl_enipedia("", "", true, true); //load all power plants in view
+          } else if (place.geometry.viewport) { //otherwise load data based on autocompleted location
             map.fitBounds(place.geometry.viewport);
             map.setZoom(10);
             load_ppl_enipedia("", "", true, true); //load all power plants in view
@@ -342,16 +376,16 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || (owner == "" && useBounds == false)) ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
-                            "  ?ppl prop:Ownercompany ?own .\n" + 
-                            "  ?ppl prop:City ?town .\n" + 
+                            "  OPTIONAL{ ?ppl prop:Ownercompany ?own } .\n" + 
+                            "  OPTIONAL{ ?ppl prop:City ?town } .\n" + 
                             "  ?ppl prop:Point ?point .\n" + 
                             "  ?ppl prop:Latitude ?lat .\n" +
                             "  ?ppl prop:Longitude ?lon .\n" +  
                             ((useBounds == true) ? "FILTER(?lat < " + lat1 + " && ?lat > " + lat2 + ") .\n" : "") +
                             ((useBounds == true) ? "FILTER(?lon < " + lon1 + " && ?lon > " + lon2 + ") .\n" : "") +
-                            "  ?ppl prop:Annual_Energyoutput_MWh ?Output_MWh .\n" + 
-                            "  ?ppl prop:Annual_Carbonemissions_kg ?co2 .\n" + 
-                            "  ?ppl prop:Intensity_kg_CO2_per_MWh_elec ?intensity .\n" + 
+                            "  OPTIONAL{?ppl prop:Annual_Energyoutput_MWh ?Output_MWh } .\n" + 
+                            "  OPTIONAL{?ppl prop:Annual_Carbonemissions_kg ?co2 } .\n" + 
+                            "  OPTIONAL{?ppl prop:Intensity_kg_CO2_per_MWh_elec ?intensity } .\n" + 
                             "  OPTIONAL{?ppl prop:Generation_capacity_electrical_MW ?capacity_MW} .\n" + 
                             "  OPTIONAL{?ppl prop:Primary_fuel_type ?fuel_type} .\n" + 
                             "  OPTIONAL{?ppl prop:State ?stat} .\n" + 
@@ -599,7 +633,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             }
             content += "</ul><a href='http://enipedia.tudelft.nl/wiki/" + marker.data.wiki.value + "' target='EnipView'>view</a> | ";
             content += "<a href='http://enipedia.tudelft.nl/enipedia/index.php?title=" + marker.data.wiki.value + "&action=formedit' target='EnipEdit'>edit</a> in Enipedia</div>";
-            infowindowEnipedia.content = content;
+            infowindowEnipedia.setContent(content);
             infowindowEnipedia.open(map, marker);
         }
 
@@ -613,6 +647,11 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             row.style.display = '';
             document.getElementById("AdvancedTableToggleText").innerHTML = "(Click for Default Menu)";
         }
+    }
+
+    function loadEnipediaMapsPageInNewTab() {
+        window.open('http://enipedia.tudelft.nl/wiki/Enipedia_Maps', '_blank');
+        window.focus();
     }
 
     function loadAllMarkersInView() {
@@ -634,17 +673,30 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
     <div id="main_table">
         <table id='everything' border=0 cellpadding=0 cellspacing=0>
             <tr id="row_containing_advanced_table" style="display: none; "> <!-- hide advanced menu here -->
-            <td colspan=3 align=center height=0>
-                <table>
-                    <tr>
-                        <td>
-                            <div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div>
-                        </td>
-                        <td><a href="http://enipedia.tudelft.nl" id="data_download_link"></a>
-                        </td>
-                    </tr>
-                </table>
-            </td>
+                <td colspan=3 align=center height=0>
+                    <table width=100%>
+                        <!-- add in controls here to allow people to enable or remove map layers -->
+                        <!-- Code below is already hooked into the left side of the map -->
+                        <!--
+                        <tr>
+                            <td colspan=2> 
+                                <center> 
+                                    <input id="show_google_map" type="checkbox" title="Google Map">Google Map&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input id="show_google_satellite" type="checkbox" title="Google Satellite">Google Satellite&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input id="show_openstreetmap" type="checkbox" title="OpenStreetMap">OpenStreetMap (OSM)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input id="show_ITOWorldPower" type="checkbox" title="ITOWorld Power Grid">ITOWorld Power Grid (OSM data)
+                                </center>
+                            </td>
+                        </tr>-->
+                        <tr>
+                            <td>
+                                <center><div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div></center>
+                            </td>
+                            <td><a href="http://enipedia.tudelft.nl" id="data_download_link"></a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
             </tr>
             <tr>
                 <td>
@@ -657,17 +709,22 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             <td><label for="enipedia_owner">Owner: </label></td>
                             <td><input id="enipedia_owner" style="width: 195px" onkeypress="if (event.keyCode == 13) load_ppl_enipedia(document.getElementById('enipedia_countries').value, this.value, false, true)" /></td>
                         </tr>
-                <tr>
-                    <td>Location:</td>
-                    <td><input id="searchTextField" type="text" style="width: 195px"></td>
-                </tr>
+                        <tr>
+                            <td>Location:</td>
+                            <td><input id="searchTextField" type="text" style="width: 195px"></td>
+                        </tr>
                     </table>
                 </td>
                 <td>    
                     <table id=iconTable border=0 cellpadding=0 cellspacing=0>
                 <tr>
-                    <td colspan=13 align=center onclick="toggleAdvancedTable()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div id="AdvancedTableToggleText">(Click for Advanced Menu)</div></i><hr></td>
+                    <td colspan=7 align=center onclick="toggleAdvancedTable()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div id="AdvancedTableToggleText">(Click for Advanced Menu)</div></i></font></td>
+                    <td colspan=6 align=center onclick="loadEnipediaMapsPageInNewTab()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div>(More Details/Give Feedback)</div></i></font></td>
                 </tr>
+                <tr>
+                    <td colspan=13><hr></td>
+                </tr>
+
                         <tr>            
                             <td><img id="biomass_img" onclick="toggle('Biomass', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/2/2a/Biomass_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png" src="http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png" class="tooltip" title="Biomass"></td>
                             <td><img id="biogas_img" onclick="toggle('Biogas', this)" deselected_img="http://enipedia.tudelft.nl/enipedia/images/4/4a/Biogas_deselected.png" selected_img="http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png" src="http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png" class="tooltip" title="Biogas"></td>
@@ -725,4 +782,3 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
     </div>
     </body>
 </html>
-
