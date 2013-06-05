@@ -111,6 +111,25 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             }
         }
 
+    function updateITOMapLayersDisplayed(checkbox){
+		if (map.overlayMapTypes.getLength() > 0){
+			//clear previous overlay
+			map.overlayMapTypes.removeAt(0);
+		} 
+		if (checkbox.checked) {
+			switch(checkbox.id){
+			case "ITOMapDistribution_checkbox":
+				$('#ITOMapGeneration_checkbox').prop('checked', false);
+				map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapDistribution));
+				break;
+			case "ITOMapGeneration_checkbox":
+				$('#ITOMapDistribution_checkbox').prop('checked', false);
+				map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapGeneration));
+				break;
+			}
+		}
+	}
+
         $(function(){
 
             var params = location.search.split(/[?&]/);
@@ -128,7 +147,8 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             $('#show_fossil').prop('checked', true);
             $('#show_renewable').prop('checked', true);
             $('#show_all').prop('checked', true);
-            
+	    $('#ITOMapDistribution_checkbox').prop('checked', true);
+
             // initialize fuel icons
             matchIconsToDisplayStates();
 
@@ -210,8 +230,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 maxZoom: 18
             }));
 
-            //TODO be able to turn this on/off - people should have some control over how much data is loaded
-            myITOOptions = {
+            ITOMapDistribution = {
                     getTileUrl: function(coord, zoom) {
                         //wrap tiles
                         var numTiles = 1 << zoom;
@@ -222,19 +241,28 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                     tileSize: new google.maps.Size(256, 256),
                     isPng: true,
                     opacity: 1,
-                    alt: "ITOWorld Power Transmission",
-                    name: "ITOWorld"
+                    alt: "ITOWorld Electricity Distribution",
+                    name: "ITOWorldElectricityDistribution"
             }
 
-            //This needs to be optional - probably turn on by default so that people know it's available
-            map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(myITOOptions));
-            //If we want to turn this off, we need to first see if it's turned on
-            /*
-            if(map.overlayMapTypes.getAt(0).name == "ITOWorld"){
-                alert("using ITOWorld layer");
-                //map.overlayMapTypes.removeAt(0, new google.maps.ImageMapType(myITOOptions));
-            }*/
-            
+            ITOMapGeneration = {
+                    getTileUrl: function(coord, zoom) {
+                        //wrap tiles
+                        var numTiles = 1 << zoom;
+                        var x = ((coord.x % numTiles) + numTiles) % numTiles;
+                        return "http://t" + Math.floor(Math.random()*4) + ".beta.itoworld.com/106/ca6f00c8cb88a79ff7c9be4b2343e9f4/" 
+                                + zoom + "/" + x + "/" + coord.y + ".png";
+                    },
+                    tileSize: new google.maps.Size(256, 256),
+                    isPng: true,
+                    opacity: 1,
+                    alt: "ITOWorld Electricity Generation",
+                    name: "ITOWorldElectricityGeneration"
+            }
+
+            //Default ITO Map layer
+            map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapDistribution));
+           
 
         //Allow users to search for places
         input = document.getElementById('searchTextField');
@@ -296,19 +324,6 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 controlDiv.style.fontSize = '10pt';
 
                 controlDiv.appendChild(document.getElementById('everything'));
-/*
-                controlDiv.appendChild(document.createTextNode("\u00a0\u00a0\u00a0"));
-                var chkITO = document.createElement('input');
-                chkITO.setAttribute("type", "checkbox");
-                chkITO.setAttribute("checked", "true");
-                chkITO.id = "ito";
-                controlDiv.appendChild(chkITO);
-                google.maps.event.addDomListener(chkITO, 'change', function() { if(chkITO.checked) 
-                                                                                    map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(myITOOptions));
-                                                                                else
-                                                                                    map.overlayMapTypes.removeAt(0) });
-                controlDiv.appendChild(document.createTextNode("ITOWorld power distribution"));
-*/
 
                 $.ajax({
                     url: 'http://enipedia.tudelft.nl/sparql',
@@ -687,19 +702,6 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             <tr id="row_containing_advanced_table" style="display: none; "> <!-- hide advanced menu here -->
                 <td colspan=3 align=center height=0>
                     <table width=100%>
-                        <!-- add in controls here to allow people to enable or remove map layers -->
-                        <!-- Code below is already hooked into the left side of the map -->
-                        <!--
-                        <tr>
-                            <td colspan=2> 
-                                <center> 
-                                    <input id="show_google_map" type="checkbox" title="Google Map">Google Map&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                    <input id="show_google_satellite" type="checkbox" title="Google Satellite">Google Satellite&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                    <input id="show_openstreetmap" type="checkbox" title="OpenStreetMap">OpenStreetMap (OSM)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                    <input id="show_ITOWorldPower" type="checkbox" title="ITOWorld Power Grid">ITOWorld Power Grid (OSM data)
-                                </center>
-                            </td>
-                        </tr>-->
                         <tr>
                             <td>
                                 <center><div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div></center>
@@ -731,7 +733,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                     <table id=iconTable border=0 cellpadding=0 cellspacing=0>
                 <tr>
                     <td colspan=7 align=center onclick="toggleAdvancedTable()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div id="AdvancedTableToggleText">(Click for Advanced Menu)</div></i></font></td>
-                    <td colspan=6 align=center onclick="loadEnipediaMapsPageInNewTab()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div>(More Details/Give Feedback)</div></i></font></td>
+                    <td colspan=6 align=center onclick="loadEnipediaMapsPageInNewTab()" onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'"><font size=1><i><div>(Documentation / Give Feedback)</div></i></font></td>
                 </tr>
                 <tr>
                     <td colspan=13><hr></td>
@@ -789,6 +791,15 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                     </table>
                 </td>
             </tr>
+	    <tr>
+		<td align=right>Layers:</td>
+		<td><font size=1>
+			<input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" target="_window">Source</a>)
+			<input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" target="_window">Source</a>)
+		     </font>
+		</td>
+		<td></td>
+	    </tr>
         </table>
     </div>
     </div>
