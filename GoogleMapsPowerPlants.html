@@ -112,26 +112,25 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         }
 
     function updateITOMapLayersDisplayed(checkbox){
-		if (map.overlayMapTypes.getLength() > 0){
-			//clear previous overlay
-			map.overlayMapTypes.removeAt(0);
-		} 
-		if (checkbox.checked) {
-			switch(checkbox.id){
-			case "ITOMapDistribution_checkbox":
-				$('#ITOMapGeneration_checkbox').prop('checked', false);
-				map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapDistribution));
-				break;
-			case "ITOMapGeneration_checkbox":
-				$('#ITOMapDistribution_checkbox').prop('checked', false);
-				map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapGeneration));
-				break;
-			}
-		}
-	}
+        if (map.overlayMapTypes.getLength() > 0){
+            //clear previous overlay
+            map.overlayMapTypes.removeAt(0);
+        } 
+        if (checkbox.checked) {
+            switch(checkbox.id){
+            case "ITOMapDistribution_checkbox":
+                $('#ITOMapGeneration_checkbox').prop('checked', false);
+                map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapDistribution));
+                break;
+            case "ITOMapGeneration_checkbox":
+                $('#ITOMapDistribution_checkbox').prop('checked', false);
+                map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapGeneration));
+                break;
+            }
+        }
+    }
 
         $(function(){
-
             var params = location.search.split(/[?&]/);
             for (i in params) {
                 param = params[i].split("=");
@@ -147,7 +146,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             $('#show_fossil').prop('checked', true);
             $('#show_renewable').prop('checked', true);
             $('#show_all').prop('checked', true);
-	    $('#ITOMapDistribution_checkbox').prop('checked', true);
+        $('#ITOMapDistribution_checkbox').prop('checked', true);
 
             // initialize fuel icons
             matchIconsToDisplayStates();
@@ -192,12 +191,16 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             var OSM = 'OSM';
             var NASA_Black_Marble = 'NASA_Black_Marble';
 
+
             var myOptions = {
                 zoom: 2,
                 center: new google.maps.LatLng(20, 0),
                 mapTypeControlOptions: {
                     mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN, OSM, NASA_Black_Marble],
+                    //TODO dropdown is too narrow, can't handle "OpenStreetMap", not sure how to fix this
                     style: google.maps.MapTypeControlStyle.DROPDOWN_MENU, 
+                    //style: google.maps.MapTypeControlStyle.DEFAULT, 
+                    // The horizontal bar looks cool, but gets in the way of the menu.  Maybe a custom control could be made
                     //style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, 
                     position: google.maps.ControlPosition.TOP_LEFT
                 }, 
@@ -278,6 +281,14 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         oms.legColors.usual[google.maps.MapTypeId.HYBRID] = oms.legColors.usual[google.maps.MapTypeId.SATELLITE] = "#0ff";
         oms.legColors.highlighted[google.maps.MapTypeId.HYBRID] = oms.legColors.highlighted[google.maps.MapTypeId.SATELLITE] = "#f0f";
 
+        // get coordinates
+        //http://stackoverflow.com/questions/7905733/google-maps-api-3-get-coordinates-from-right-click
+        google.maps.event.addListener(map, "center_changed", function(event) {
+            var lat = map.getCenter().lat();
+            var lng = map.getCenter().lng();
+             $('#current_coordinates_display').text(lat + ", " + lng);
+            //alert("Current Coordinates: " + lat + ", " + lng);
+        });
 
         //Autocomplete listener
         google.maps.event.addListener(autocomplete, 'place_changed', function() {
@@ -700,7 +711,8 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
     <div id="main_table">
         <table id='everything' border=0 cellpadding=0 cellspacing=0>
             <tr id="row_containing_advanced_table" style="display: none; "> <!-- hide advanced menu here -->
-                <td colspan=3 align=center height=0>
+                <td><font size=1>Current Coords: <div id='current_coordinates_display'></div></font></td>
+                <td colspan=2 align=center height=0>
                     <table width=100%>
                         <tr>
                             <td>
@@ -791,15 +803,15 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                     </table>
                 </td>
             </tr>
-	    <tr>
-		<td align=right>Layers:</td>
-		<td><font size=1>
-			<input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" target="_window">Source</a>)
-			<input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" target="_window">Source</a>)
-		     </font>
-		</td>
-		<td></td>
-	    </tr>
+        <tr>
+        <td align=right>Layers:</td>
+        <td><font size=1>
+            <input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" target="_window">Source</a>)
+            <input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" target="_window">Source</a>)
+             </font>
+        </td>
+        <td></td>
+        </tr>
         </table>
     </div>
     </div>
