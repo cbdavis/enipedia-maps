@@ -191,10 +191,10 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             var OSM = 'OSM';
             var NASA_Black_Marble = 'NASA_Black_Marble';
 
-
             var myOptions = {
                 zoom: 2,
                 center: new google.maps.LatLng(20, 0),
+                scaleControl: true,
                 mapTypeControlOptions: {
                     mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN, OSM, NASA_Black_Marble],
                     //TODO dropdown is too narrow, can't handle "OpenStreetMap", not sure how to fix this
@@ -409,12 +409,13 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "select (substr(str(?ppl), 33) as ?wiki) ?name (substr(str(?own), 33) as ?ownerenc) ?owner \n" + 
                             "?zip (substr(str(?town), 33) as ?city) (substr(str(?stat), 33) as ?state) ?Output_MWh ?point \n" + 
                             "(substr(str(?fuel_type), 33) as ?fuel) \n" + 
-                            "(round(?co2 / 1000000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) ?capacity_MW where {\n" + 
+                            "(round(?co2 / 1000000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) ?capacity_MW ?capacity_thermal_MW ?status where {\n" + 
                             "GRAPH <http://enipedia.tudelft.nl/wiki/> {\n"+
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || (owner == "" && useBounds == false)) ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
                             "  OPTIONAL{ ?ppl prop:Ownercompany ?own } .\n" + 
+                            "  OPTIONAL{ ?ppl prop:Status ?status } .\n" + 
                             "  OPTIONAL{ ?ppl prop:City ?town } .\n" + 
                             "  ?ppl prop:Point ?point .\n" + 
                             "  ?ppl prop:Latitude ?lat .\n" +
@@ -425,6 +426,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  OPTIONAL{?ppl prop:Annual_Carbonemissions_kg ?co2 } .\n" + 
                             "  OPTIONAL{?ppl prop:Intensity_kg_CO2_per_MWh_elec ?intensity } .\n" + 
                             "  OPTIONAL{?ppl prop:Generation_capacity_electrical_MW ?capacity_MW} .\n" + 
+                            "  OPTIONAL{?ppl prop:Generation_capacity_thermal_MW ?capacity_thermal_MW} .\n" + 
                             "  OPTIONAL{?ppl prop:Primary_fuel_type ?fuel_type} .\n" + 
                             "  OPTIONAL{?ppl prop:State ?stat} .\n" + 
                             "  OPTIONAL{?ppl prop:Zipcode ?zip} .\n" + 
@@ -623,13 +625,24 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 var myLatLng = new google.maps.LatLng(latitude, longitude);
                 
                 // scale marker according to power output
-                var output = list[i].Output_MWh ? list[i].Output_MWh.value : 0;
+                // CD - the scaling calculations below are somewhat bogus, but the aim is to move away from the carma estimates
+                // where possible and use the data collected on power plant capacities.
+                // This could certainly be improved, but the challenge is figuring out how to deal with the missing data.
+                var output_MWh = list[i].Output_MWh ? list[i].Output_MWh.value : 0;
 
-                //var factor = 1 + ((output == 0 ? 0 : Math.log(output)/Math.LN10) - 5) / 10;
-                //CD - trying different scaling factor, units for values returned from query are different now
-                // 1e8 is a bit bigger than the Three Gorges Plant
-                //This (ideally) sets the scale of the icons between 0.25 and 1.25
-                var factor = 0.5 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/8) * 0.75);
+                var capacity_MW = list[i].capacity_MW  ? list[i].capacity_MW.value : 0;
+                var capacity_thermal_MW = list[i].capacity_thermal_MW ? list[i].capacity_thermal_MW.value : 0;
+                var total_capacity = capacity_MW + capacity_thermal_MW;
+
+                if (total_capacity > 0){
+                    output = total_capacity;
+                } else {
+                    //Totally bogus assumption of 100% availability
+                    //Carma probably calculates this for fuel type, but the fuel type is not always available.
+                    output = output_MWh/8760; 
+                }
+                
+                var factor = 0.6 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/4) * 0.5);
 
                 var markerImage = {url: fuelIcon, size: {width:32*factor, height:37*factor}, scaledSize: {width:32*factor, height:37*factor} }
                 var markerOptions = {position: myLatLng, title: list[i].name.value, icon: markerImage};
