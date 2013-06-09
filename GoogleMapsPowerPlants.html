@@ -632,17 +632,19 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 
                 var capacity_MW = list[i].capacity_MW  ? list[i].capacity_MW.value : 0;
                 var capacity_thermal_MW = list[i].capacity_thermal_MW ? list[i].capacity_thermal_MW.value : 0;
-                var total_capacity = capacity_MW + capacity_thermal_MW;
+                var total_capacity = parseFloat(capacity_MW) + parseFloat(capacity_thermal_MW);
 
                 if (total_capacity > 0){
                     output = total_capacity;
+                    //alert(list[i].name.value + output);
                 } else {
                     //Totally bogus assumption of 100% availability
                     //Carma probably calculates this for fuel type, but the fuel type is not always available.
                     output = output_MWh/8760; 
                 }
                 
-                var factor = 0.6 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/4) * 0.5);
+                //var factor = 0.6 + (output == 0 ? 0 : (Math.log(output)/Math.LN10/4) * 0.5);
+                var factor = 0.5 + (output == 0 ? 0 : (Math.sqrt(output)/75));
 
                 var markerImage = {url: fuelIcon, size: {width:32*factor, height:37*factor}, scaledSize: {width:32*factor, height:37*factor} }
                 var markerOptions = {position: myLatLng, title: list[i].name.value, icon: markerImage};
