@@ -146,7 +146,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             $('#show_fossil').prop('checked', true);
             $('#show_renewable').prop('checked', true);
             $('#show_all').prop('checked', true);
-        $('#ITOMapDistribution_checkbox').prop('checked', true);
+            $('#ITOMapDistribution_checkbox').prop('checked', true);
 
             // initialize fuel icons
             matchIconsToDisplayStates();
@@ -286,8 +286,16 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         google.maps.event.addListener(map, "center_changed", function(event) {
             var lat = map.getCenter().lat();
             var lng = map.getCenter().lng();
-             $('#current_coordinates_display').text(lat + ", " + lng);
-            //alert("Current Coordinates: " + lat + ", " + lng);
+            // round to a few decimal points 
+            // this is basically cosmetic as it keeps the interface from 
+            // jumping around due to varying numbers of digits being displayed
+            lat = parseFloat(Math.round(lat * 100000) / 100000).toFixed(5).toString();
+            lng = parseFloat(Math.round(lng * 100000) / 100000).toFixed(5).toString();
+            // update the links to external maps so you'll get dropped down in the same place
+            $('#bing_map_link').prop('href', 'http://www.bing.com/maps/?v=2&cp='+lat+'~'+lng+'&lvl='+ (map.getZoom() +1 )+'&dir=0&sty=h&form=LMLTCC');
+            $('#ITOMapDistribution_link').prop('href', "http://www.itoworld.com/map/4?lon=" + lng + "&lat=" + lat + "&zoom=" + map.getZoom());
+            $('#ITOMapGeneration_link').prop('href', "http://www.itoworld.com/map/106?lon=" + lng + "&lat=" + lat + "&zoom=" + map.getZoom());
+            $('#current_coordinates_display').text(lat + ", " + lng);
         });
 
         //Autocomplete listener
@@ -726,12 +734,21 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
     <div id="main_table">
         <table id='everything' border=0 cellpadding=0 cellspacing=0>
             <tr id="row_containing_advanced_table" style="display: none; "> <!-- hide advanced menu here -->
-                <td><font size=1>Current Coords: <div id='current_coordinates_display'></div></font></td>
+                <td></td>
                 <td colspan=2 align=center height=0>
                     <table width=100%>
                         <tr>
                             <td>
-                                <center><div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div></center>
+                                <table>
+                                    <tr>
+                                        <td>
+                                            (<a href="http://www.bing.com/maps" id="bing_map_link" target="_window">View in Bing</a>) 
+                                        </td>
+                                        <td>
+                                            <div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div>
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
                             <td><a href="http://enipedia.tudelft.nl" id="data_download_link"></a>
                             </td>
@@ -821,11 +838,11 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         <tr>
         <td align=right>Layers:</td>
         <td><font size=1>
-            <input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" target="_window">Source</a>)
-            <input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" target="_window">Source</a>)
+            <input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" id="ITOMapDistribution_link" target="_window">Source</a>)
+            <input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" id="ITOMapGeneration_link" target="_window">Source</a>)
              </font>
         </td>
-        <td></td>
+        <td><font size=1>Current Coords: <div id='current_coordinates_display'></div></font></td>
         </tr>
         </table>
     </div>
