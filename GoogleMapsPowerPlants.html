@@ -692,6 +692,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 if (p != "wiki" && p != "name" && p != "point" && marker.data[p].value != null && !(p == "ownerenc" && marker.data.owner))
                     content += "<li>" + p.replace("_"," ") + ": " + marker.data[p].value.replace("_"," ").replace(".0e0","") + "</li>";
             }
+            marker.data.wiki.value = marker.data.wiki.value.replace("'", "%27");
             content += "</ul><a href='http://enipedia.tudelft.nl/wiki/" + marker.data.wiki.value + "' target='EnipView'>view</a> | ";
             content += "<a href='http://enipedia.tudelft.nl/enipedia/index.php?title=" + marker.data.wiki.value + "&action=formedit' target='EnipEdit'>edit</a> in Enipedia</div>";
             infowindowEnipedia.setContent(content);
