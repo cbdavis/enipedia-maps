@@ -439,7 +439,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  OPTIONAL{?ppl prop:State ?stat} .\n" + 
                             "  OPTIONAL{?ppl prop:Zipcode ?zip} .\n" + 
                             "  OPTIONAL{?own rdfs:label ?owner} .\n" + 
-                            (owner != "" ? "  FILTER( REGEX(str(?owner), \".*" + owner + ".*\",\"i\") ) .\n" : "") +
+                            (owner != "" ? "  FILTER( REGEX(str(?owner), \".*" + owner.replace("+","\\\\+") + ".*\",\"i\") ) .\n" : "") +
                             "}.\n" +
                             "} order by ?ppl"
 
