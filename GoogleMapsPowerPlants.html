@@ -74,6 +74,20 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         
         <script type="text/javascript">
 
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-16211849-3']);
+          _gaq.push(['_trackPageview']);
+
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+
+        </script>
+
+        <script type="text/javascript">
+
         var map;
         var input;
         var autocomplete;
@@ -428,6 +442,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  ?ppl prop:Point ?point .\n" + 
                             "  ?ppl prop:Latitude ?lat .\n" +
                             "  ?ppl prop:Longitude ?lon .\n" +  
+			    "  FILTER NOT EXISTS {?ppl prop:Depreciated_entry ?depreciated } .\n" + 
                             ((useBounds == true) ? "FILTER(?lat < " + lat1 + " && ?lat > " + lat2 + ") .\n" : "") +
                             ((useBounds == true) ? "FILTER(?lon < " + lon1 + " && ?lon > " + lon2 + ") .\n" : "") +
                             "  OPTIONAL{?ppl prop:Annual_Energyoutput_MWh ?Output_MWh } .\n" + 
@@ -441,7 +456,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  OPTIONAL{?own rdfs:label ?owner} .\n" + 
                             (owner != "" ? "  FILTER( REGEX(str(?owner), \".*" + owner.replace("+","\\\\+") + ".*\",\"i\") ) .\n" : "") +
                             "}.\n" +
-                            "} order by ?ppl"
+                            "}"
 
             $('#data_download_link').text("(download data)");
             $('#data_download_link').prop('href', 'http://enipedia.tudelft.nl/sparql?default-graph-uri=&query=' + encodeURIComponent(dataQueryString) + '&format=application%2Fvnd.ms-excel&timeout=0&debug=on');
@@ -579,25 +594,45 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 var fuelIcon = "";
                 var fuel = list[i].fuel ? list[i].fuel.value : "";
                 var fuelGroup = "";
-                if (fuel.indexOf("Biofuel") >=0 || fuel.indexOf("Biomass") >=0 || fuel.indexOf("Peat") >=0) {
+                if (fuel.indexOf("Biofuel") >=0 || 
+			fuel.indexOf("Biomass") >=0 || 
+			fuel.indexOf("Peat") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/f/f0/Biomass.png";
                     fuelGroup = "Biomass";
                 } else if (fuel.indexOf("Biogas") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/5/5d/Biogas.png";
                     fuelGroup = "Biogas";
-                } else if (fuel.indexOf("Coal") >=0 || fuel.indexOf("Lignite") >=0) {
+                } else if (fuel.indexOf("Coal") >=0 || 
+				fuel.indexOf("Lignite") >=0 || 
+				fuel.indexOf("Hard_Coal") >=0 || 
+				fuel.indexOf("Brown_Coal") >=0 || 
+				fuel.indexOf("Coal_Water_Mixture") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/a/a7/Coal.png";
                     fuelGroup = "Coal";
-                } else if (fuel.indexOf("Natural_Gas") >=0 || fuel.indexOf("Coke_Oven_Gas") >=0) {
+                } else if (fuel.indexOf("Natural_Gas") >=0 || 
+				fuel.indexOf("Coal_Seam_Gas") >=0 || 
+				fuel.indexOf("Blast_Furnace_Gas") >=0 || 
+				fuel.indexOf("Hydrogen") >=0 || 
+				fuel.indexOf("Coke_Oven_Gas") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/7/78/Gas.png";
                     fuelGroup = "Gas";
+                } else if (fuel.indexOf("Oil") >=0 || 
+				fuel.indexOf("Naphtha") >=0 || 
+				fuel.indexOf("Diesel_Oil") >=0 || 
+				fuel.indexOf("Fuel_Oil") >=0 || 
+				fuel.indexOf("Heavy_Fuel_Oil") >=0 || 
+				fuel.indexOf("Residual_Fuel_Oil") >=0 || 
+				fuel.indexOf("Diesel") >=0 || 
+				fuel.indexOf("Petroleum") >=0 || 
+				fuel.indexOf("Petroleum_Coke") >=0 || 
+				fuel.indexOf("Gasoil") >=0) {
+                    fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/0/06/Oil.png";
+                    fuelGroup = "Oil";
                 } else if (fuel.indexOf("Geothermal") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/0/05/Geothermal.png";
                     fuelGroup = "Geothermal";
-                } else if (fuel.indexOf("Oil") >=0 || fuel.indexOf("Diesel") >=0 || fuel.indexOf("Petroleum") >=0 || fuel.indexOf("Gasoil") >=0) {
-                    fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/0/06/Oil.png";
-                    fuelGroup = "Oil";
-                } else if (fuel.indexOf("Tidal") >=0 || fuel.indexOf("Hydro") >=0) {
+                } else if (fuel.indexOf("Tidal") >=0 || 
+				fuel.indexOf("Hydro") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/0/08/Hydro.png";
                     fuelGroup = "Hydro";
                 } else if (fuel.indexOf("Nuclear") >=0) {
@@ -606,10 +641,16 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 } else if (fuel.indexOf("Solar") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/2/25/Solar.png";
                     fuelGroup = "Solar";
-                } else if (fuel.indexOf("Wave") >=0 || fuel.indexOf("Waste.png") >= 0) {
+                } else if (fuel.indexOf("Wave") >=0 || 
+				fuel.indexOf("Waste.png") >= 0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/e/e9/Wave.png";
                     fuelGroup = "Wave";
-                } else if (fuel.indexOf("Refuse") >=0 || fuel.indexOf("Landfill") >=0 || fuel.indexOf("Waste") >=0) {
+                } else if (fuel.indexOf("Refuse") >=0 || 
+				fuel.indexOf("Landfill") >=0 || 
+				fuel.indexOf("Landfill_Gas") >=0 || 
+				fuel.indexOf("Municipal_Solid_Waste") >=0 || 
+				fuel.indexOf("Refuse_Derived_Fuel") >=0 || 
+				fuel.indexOf("Waste") >=0) {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/1/12/Waste.png";
                     fuelGroup = "Waste";
                 } else if (fuel.indexOf("Wind") >=0) {
@@ -618,8 +659,8 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 } else {
                     fuelIcon = "http://enipedia.tudelft.nl/enipedia/images/d/dd/Unknown.png";
                     fuelGroup = "Unknown";
-                }
-                
+                }                
+
                 fuelCounts[fuelGroup.toLowerCase()]++;
 
                 var coords = list[i].point.value.split(',');
@@ -692,7 +733,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 if (p != "wiki" && p != "name" && p != "point" && marker.data[p].value != null && !(p == "ownerenc" && marker.data.owner))
                     content += "<li>" + p.replace("_"," ") + ": " + marker.data[p].value.replace("_"," ").replace(".0e0","") + "</li>";
             }
-            marker.data.wiki.value = marker.data.wiki.value.replace("'", "%27");
+	    marker.data.wiki.value = marker.data.wiki.value.replace("'", "%27");
             content += "</ul><a href='http://enipedia.tudelft.nl/wiki/" + marker.data.wiki.value + "' target='EnipView'>view</a> | ";
             content += "<a href='http://enipedia.tudelft.nl/enipedia/index.php?title=" + marker.data.wiki.value + "&action=formedit' target='EnipEdit'>edit</a> in Enipedia</div>";
             infowindowEnipedia.setContent(content);
