@@ -111,6 +111,26 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             }
         }
 
+	function change_map_layer(layerName){
+		switch(layerName){
+			case "Google Satellite":
+			map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+			break;
+
+			case "Google Map":
+			map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+			break;
+
+			case "OpenStreetMap":
+			map.setMapTypeId("OSM");
+			break;
+
+			case "NASA Black Marble":
+			map.setMapTypeId("NASA_Black_Marble");
+			break;
+		}
+	}
+
     function updateITOMapLayersDisplayed(checkbox){
         if (map.overlayMapTypes.getLength() > 0){
             //clear previous overlay
@@ -197,12 +217,6 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 scaleControl: true,
                 mapTypeControlOptions: {
                     mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN, OSM, NASA_Black_Marble],
-                    //TODO dropdown is too narrow, can't handle "OpenStreetMap", not sure how to fix this
-                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU, 
-                    //style: google.maps.MapTypeControlStyle.DEFAULT, 
-                    // The horizontal bar looks cool, but gets in the way of the menu.  Maybe a custom control could be made
-                    //style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, 
-                    position: google.maps.ControlPosition.TOP_LEFT
                 }, 
                 mapTypeId: google.maps.MapTypeId.HYBRID
             };
@@ -293,6 +307,9 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             lng = parseFloat(Math.round(lng * 100000) / 100000).toFixed(5).toString();
             // update the links to external maps so you'll get dropped down in the same place
             $('#bing_map_link').prop('href', 'http://www.bing.com/maps/?v=2&cp='+lat+'~'+lng+'&lvl='+ (map.getZoom() +1 )+'&dir=0&sty=h&form=LMLTCC');
+            $('#openstreetmap_map_link').prop('href', 'http://www.openstreetmap.org/?mlon='+lng+'&mlat='+lat+'&zoom=' + map.getZoom());
+            $('#wikimapia_map_link').prop('href', 'http://wikimapia.org/#lang=en&lat='+lat+'&lon='+lng+'&z=' + map.getZoom() + '&m=b');
+            $('#wikipedia_map_link').prop('href', 'http://toolserver.org/~kolossos/openlayers/kml-on-ol.php?lat='+lat+'&lon='+lng+'&zoom=' + map.getZoom() + '&lang=en');
             $('#ITOMapDistribution_link').prop('href', "http://www.itoworld.com/map/4?lon=" + lng + "&lat=" + lat + "&zoom=" + map.getZoom());
             $('#ITOMapGeneration_link').prop('href', "http://www.itoworld.com/map/106?lon=" + lng + "&lat=" + lat + "&zoom=" + map.getZoom());
             $('#current_coordinates_display').text(lat + ", " + lng);
@@ -417,7 +434,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "select (substr(str(?ppl), 33) as ?wiki) ?name (substr(str(?own), 33) as ?ownerenc) ?owner \n" + 
                             "?zip (substr(str(?town), 33) as ?city) (substr(str(?stat), 33) as ?state) ?Output_MWh ?point \n" + 
                             "(substr(str(?fuel_type), 33) as ?fuel) \n" + 
-                            "(round(?co2 / 1000000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) ?capacity_MW ?capacity_thermal_MW ?status where {\n" + 
+                            "(round(?co2 / 1000000) as ?CO2_emissions) (round(?intensity) as ?CO2_intensity) ?capacity_MW ?capacity_thermal_MW ?status ?depreciated where {\n" + 
                             "GRAPH <http://enipedia.tudelft.nl/wiki/> {\n"+
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || (owner == "" && useBounds == false)) ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
@@ -428,7 +445,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  ?ppl prop:Point ?point .\n" + 
                             "  ?ppl prop:Latitude ?lat .\n" +
                             "  ?ppl prop:Longitude ?lon .\n" +  
-			    "  FILTER NOT EXISTS {?ppl prop:Depreciated_entry ?depreciated } .\n" + 
+			    "  OPTIONAL {?ppl prop:Depreciated_entry ?depreciated } .\n" + 
                             ((useBounds == true) ? "FILTER(?lat < " + lat1 + " && ?lat > " + lat2 + ") .\n" : "") +
                             ((useBounds == true) ? "FILTER(?lon < " + lon1 + " && ?lon > " + lon2 + ") .\n" : "") +
                             "  OPTIONAL{?ppl prop:Annual_Energyoutput_MWh ?Output_MWh } .\n" + 
@@ -501,6 +518,25 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         }
 
 
+	//determines whether depreciated entries will be shown or not
+        function show_depreciated(checked){
+		markersArray = window.markersEnipedia;
+
+		if (checked == true){
+			// show everything including depreciated entries
+	                for (i in markersArray) {
+				markersArray[i].setMap(map);	
+			}
+		} else {
+			// show everything except depreciated entries
+	                for (i in markersArray) {
+				if (markersArray[i].data.depreciated.value == 1){
+					markersArray[i].setMap(null);	
+				}
+			}
+		}
+	}
+
         function show_meta(meta_group, checked){
 
             var fuelGroups = fuelGroupsByMetaGroup[meta_group];
@@ -569,11 +605,21 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             for (var cnt in fuelCounts)
                 fuelCounts[cnt] = 0;        
 
+	    //the number of plant entries that are tagged as depreciated
+	    var depreciatedCount = 0;
+
             window.data = data;
             var bounds = new google.maps.LatLngBounds();
             var list = data.results.bindings;
             
             for(i = 0; i < list.length; i++){
+
+		if (list[i].depreciated) {
+			if(list[i].depreciated.value == 1){
+				depreciatedCount = depreciatedCount + 1;
+			}
+		}
+
 
                 //figure out which type of fuel this is
 
@@ -707,9 +753,17 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 if (fitBounds == true){
                     map.fitBounds(bounds);
                 }
+
+	    //show the count of depreciated entries
+		$('#depreciated_count').text('('+depreciatedCount.toString()+' found)');
+
             //show the counts in the control bar
             for (var cnt in fuelCounts)
                 $('#'+cnt+'_count').text(fuelCounts[cnt].toString());        
+
+	    //don't show depreciated markers unless asked
+            $('#show_depreciated').prop('checked', false);
+	    show_depreciated(false);
         }
             
             
@@ -762,29 +816,40 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
     <div id="main_table">
         <table id='everything' border=0 cellpadding=0 cellspacing=0>
             <tr id="row_containing_advanced_table" style="display: none; "> <!-- hide advanced menu here -->
-                <td></td>
-                <td colspan=2 align=center height=0>
-                    <table width=100%>
-                        <tr>
-                            <td>
-                                <table>
-                                    <tr>
-                                        <td>
-                                            (<a href="http://www.bing.com/maps" id="bing_map_link" target="_window">View in Bing</a>) 
-                                        </td>
-                                        <td>
-                                            <div onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</div>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                            <td><a href="http://enipedia.tudelft.nl" id="data_download_link"></a>
-                            </td>
-                        </tr>
-                    </table>
+		<td colspan=3>
+			<table width=100% border=0 cellpadding=0 cellspacing=0>
+				<tr>
+					<td>&nbsp;&nbsp;<b>Data Filtering:</b>
+					Show depreciated data: 
+					<input onchange="show_depreciated(this.checked)" id="show_depreciated" type="checkbox" value="false" title="Show Depreciated">
+					<span id='depreciated_count'/>
+					</td>
+				</tr>
+				<tr><td><hr></td></tr>
+				<tr>
+					<td>
+						&nbsp;&nbsp;<b>View in other maps:</b>
+						<a href="http://openstreetmap.org/" id="openstreetmap_map_link" target="_window">OpenStreetMap<img src="http://enipedia.tudelft.nl/enipedia/images/7/7a/Openstreetmap_logo_small.png"></a>&nbsp;&nbsp;
+						<a href="http://toolserver.org/~kolossos/openlayers/kml-on-ol.php?lat=30&lon=0&zoom=3&lang=en" id="wikipedia_map_link" target="_window">Wikipedia<img src="http://enipedia.tudelft.nl/enipedia/images/thumb/2/2d/Wikipedia-logo-no-name.svg/16px-Wikipedia-logo-no-name.svg.png"></a>&nbsp;&nbsp;
+						<a href="http://wikimapia.org" id="wikimapia_map_link" target="_window">Wikimapia<img src="http://enipedia.tudelft.nl/enipedia/images/f/f7/Wikimapia_logo_small.png"></a>&nbsp;&nbsp;
+						<a href="http://www.bing.com/maps" id="bing_map_link" target="_window">Bing<img src="http://enipedia.tudelft.nl/enipedia/images/d/d7/Bing_logo_small.png"></a>&nbsp;&nbsp;
+
+					</td>
+				</tr>
+				<tr><td><hr></td></tr>
+				<tr>
+					<td>
+						&nbsp;&nbsp;<b>Data Loading/Downloading:</b>&nbsp;&nbsp;<span onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</span>
+						<a href="http://enipedia.tudelft.nl" id="data_download_link"></a> 
+
+					</td>
+				</tr>
+				<tr><td><hr></td></tr>
+			</table>
+
                 </td>
             </tr>
-            <tr>
+            <tr> <!-- part of the table to display all of the time -->
                 <td>
                     <table id=iconTable border=0 cellpadding=0 cellspacing=0>
                         <tr>            
@@ -864,7 +929,15 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 </td>
             </tr>
         <tr>
-        <td align=right>Layers:</td>
+        <td>
+		<select id="map_layers" style="width: 200px" onchange="change_map_layer(this.value)">
+			<option value="Google Satellite">Google Satellite</option>
+			<option value="Google Map">Google Map</option>
+			<option value="OpenStreetMap">OpenStreetMap</option>
+			<option value="NASA Black Marble">NASA Black Marble</option>
+		</select>
+
+Layers:</td>
         <td><font size=1>
             <input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" id="ITOMapDistribution_link" target="_window">Source</a>)
             <input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" id="ITOMapGeneration_link" target="_window">Source</a>)
