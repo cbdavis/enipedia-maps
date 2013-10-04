@@ -5,11 +5,7 @@ TODO, ideas, etc:
 OpenStreetMap + ItoWorld power map is included now, and users are able to switch between this and Google Maps.  A bit more work is needed to improve the interface.
 The work by Nono and the latest ItoWorld maps have a clickable interface - would be good to include this as well.
 
-Need some sort of progress bar.  Disable download link while data is still downloading.
-
 The code now contains the beginnings of an advanced menu that allows people to display all the power plants within the bounds of the current map view.  The advanced menu needs to be made (somewhat) more presentable, and then it will be posted on Enipedia
-
-A link for downloading data to Excel is set up.  So far this has only been tested with Chrome.
 
 Cool features would be summations of power production by source, etc.
 
@@ -71,7 +67,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         <script src="http://jawj.github.com/OverlappingMarkerSpiderfier/bin/oms.min.js" type="text/javascript"></script>
 
         <link rel="stylesheet" href="http://code.jquery.com/ui/1.8.23/themes/base/jquery-ui.css" type="text/css" />
-        
+
         <script type="text/javascript">
 
         var map;
@@ -215,8 +211,9 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 zoom: 2,
                 center: new google.maps.LatLng(20, 0),
                 scaleControl: true,
+		disableDefaultUI:true,
                 mapTypeControlOptions: {
-                    mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN, OSM, NASA_Black_Marble],
+                    mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN, OSM, NASA_Black_Marble]
                 }, 
                 mapTypeId: google.maps.MapTypeId.HYBRID
             };
@@ -461,9 +458,6 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "}.\n" +
                             "}"
 
-            $('#data_download_link').text("(download data)");
-            $('#data_download_link').prop('href', 'http://enipedia.tudelft.nl/sparql?default-graph-uri=&query=' + encodeURIComponent(dataQueryString) + '&format=application%2Fvnd.ms-excel&timeout=0&debug=on');
-
             var downloadFileName = "Enipedia_Data" //default name if can't figure out how the user is filtering.  
             if (owner != ""){
                 downloadFileName += '_' + owner.replace(' ', '_')
@@ -491,10 +485,12 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                     downloadFileName += '_' + Math.abs(lon2).toFixed(3).toString() + 'W';
                 }
             }
-            downloadFileName = downloadFileName + '.xslx'
+            downloadFileName = downloadFileName + '.csv'
+            $('#data_download_link').text("(Download Data)");
+            $('#data_download_link').prop('href', 'javascript:document.forms["downloaddata"].submit()');
+	    $('#downloadFileName').attr('value', downloadFileName);
+	    $('#query').attr('value', dataQueryString);
 
-            //This at least works with the latest version of chrome, should test with older version of IE, etc.
-            $('#data_download_link').prop('download', downloadFileName);
 
             $.ajax({
                     url: 'http://enipedia.tudelft.nl/sparql',
@@ -530,8 +526,10 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 		} else {
 			// show everything except depreciated entries
 	                for (i in markersArray) {
-				if (markersArray[i].data.depreciated.value == 1){
-					markersArray[i].setMap(null);	
+				if (markersArray[i].data.depreciated){ //silly check to see if a value exists at all.  IE breaks without this, other browsers work ok
+					if (markersArray[i].data.depreciated.value == 1){
+						markersArray[i].setMap(null);	
+					}
 				}
 			}
 		}
@@ -810,6 +808,14 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
         </script>
     </head>
     <body>
+<!-- this is needed since IE chops off URLs after 2083 characters so GET requests can't be used
+POST requests are ok, but these can't be done through jQuery since it doesn't bring up a "save as" dialog for the file
+-->
+<form name="downloaddata" action="http://enipedia.tudelft.nl/maps/download.php" method="post">
+<input id="downloadFileName" type=hidden name="downloadFileName">
+<input id="query" type=hidden name="query">
+</form>
+
         <div id="map_canvas"></div>
 
     <!-- normal controls -->
@@ -840,7 +846,9 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 				<tr>
 					<td>
 						&nbsp;&nbsp;<b>Data Loading/Downloading:</b>&nbsp;&nbsp;<span onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</span>
-						<a href="http://enipedia.tudelft.nl" id="data_download_link"></a> 
+						<!--<span id="data_download_link" onclick="downloadDataViaPost()"></span>-->
+						<a id="data_download_link"></a>  
+
 
 					</td>
 				</tr>
