@@ -493,6 +493,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 
 
             $.ajax({
+                    type: 'POST', 
                     url: 'http://enipedia.tudelft.nl/sparql',
                     data: {
                         query: dataQueryString,
@@ -847,8 +848,6 @@ POST requests are ok, but these can't be done through jQuery since it doesn't br
 					<td>
 						&nbsp;&nbsp;<b>Data Loading/Downloading:</b>&nbsp;&nbsp;<span onmouseover="this.style.cursor='pointer'" onmouseout="this.style.cursor='default'" onclick="loadAllMarkersInView()">(Click to load all power plants on current map view)</span>
 						<a id="data_download_link"></a>  
-
-
 					</td>
 				</tr>
 				<tr><td><hr></td></tr>
