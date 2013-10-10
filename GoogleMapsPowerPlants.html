@@ -360,6 +360,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 
                 $.ajax({
                     url: 'http://enipedia.tudelft.nl/sparql',
+		    type: 'POST', 
                     data: {
                     query: "BASE <http://enipedia.tudelft.nl/wiki/>\n" + 
                         "PREFIX prop: <http://enipedia.tudelft.nl/wiki/Property:>\n" + 
