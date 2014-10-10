@@ -70,6 +70,21 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 
         <script type="text/javascript">
 
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-16211849-3']);
+          _gaq.push(['_trackPageview']);
+
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+
+        </script>
+
+        
+        <script type="text/javascript">
+
         var map;
         var input;
         var autocomplete;
@@ -116,6 +131,10 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 			case "Google Map":
 			map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
 			break;
+
+                        case "Google Terrain":
+                        map.setMapTypeId(google.maps.MapTypeId.TERRAIN);
+                        break;
 
 			case "OpenStreetMap":
 			map.setMapTypeId("OSM");
@@ -360,7 +379,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 
                 $.ajax({
                     url: 'http://enipedia.tudelft.nl/sparql',
-		    type: 'POST', 
+                    type: 'POST', 
                     data: {
                     query: "BASE <http://enipedia.tudelft.nl/wiki/>\n" + 
                         "PREFIX prop: <http://enipedia.tudelft.nl/wiki/Property:>\n" + 
@@ -940,6 +959,7 @@ POST requests are ok, but these can't be done through jQuery since it doesn't br
 		<select id="map_layers" style="width: 200px" onchange="change_map_layer(this.value)">
 			<option value="Google Satellite">Google Satellite</option>
 			<option value="Google Map">Google Map</option>
+			<option value="Google Terrain">Google Terrain</option>
 			<option value="OpenStreetMap">OpenStreetMap</option>
 			<option value="NASA Black Marble">NASA Black Marble</option>
 		</select>
