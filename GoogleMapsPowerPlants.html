@@ -456,7 +456,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || (owner == "" && useBounds == false)) ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
-                            "  OPTIONAL{ ?ppl prop:Ownercompany ?own } .\n" + 
+                            "  OPTIONAL{ ?ppl prop:Ownercompany ?own . ?own rdfs:label ?owner . } .\n" + 
                             "  OPTIONAL{ ?ppl prop:Status ?status } .\n" + 
                             "  OPTIONAL{ ?ppl prop:City ?town } .\n" + 
                             "  ?ppl prop:Point ?point .\n" + 
@@ -473,7 +473,6 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  OPTIONAL{?ppl prop:Primary_fuel_type ?fuel_type} .\n" + 
                             "  OPTIONAL{?ppl prop:State ?stat} .\n" + 
                             "  OPTIONAL{?ppl prop:Zipcode ?zip} .\n" + 
-                            "  OPTIONAL{?own rdfs:label ?owner} .\n" + 
                             (owner != "" ? "  FILTER( REGEX(str(?owner), \".*" + owner.replace("+","\\\\+") + ".*\",\"i\") ) .\n" : "") +
                             "}.\n" +
                             "}"
