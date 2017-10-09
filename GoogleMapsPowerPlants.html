@@ -139,27 +139,25 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
 			case "OpenStreetMap":
 			map.setMapTypeId("OSM");
 			break;
-
+			/** Need to find new URL **/
+			/**
 			case "NASA Black Marble":
 			map.setMapTypeId("NASA_Black_Marble");
 			break;
+			**/
 		}
 	}
 
-    function updateITOMapLayersDisplayed(checkbox){
+    function updateMapLayersDisplayed(checkbox){
         if (map.overlayMapTypes.getLength() > 0){
             //clear previous overlay
             map.overlayMapTypes.removeAt(0);
         } 
         if (checkbox.checked) {
             switch(checkbox.id){
-            case "ITOMapDistribution_checkbox":
+            case "OpenInfrastructureMap_checkbox":
                 $('#ITOMapGeneration_checkbox').prop('checked', false);
-                map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapDistribution));
-                break;
-            case "ITOMapGeneration_checkbox":
-                $('#ITOMapDistribution_checkbox').prop('checked', false);
-                map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapGeneration));
+                map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(OpenInfrastructureMap));
                 break;
             }
         }
@@ -181,7 +179,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             $('#show_fossil').prop('checked', true);
             $('#show_renewable').prop('checked', true);
             $('#show_all').prop('checked', true);
-            $('#ITOMapDistribution_checkbox').prop('checked', true);
+            $('#OpenInfrastructureMap_checkbox').prop('checked', true);
 
             // initialize fuel icons
             matchIconsToDisplayStates();
@@ -263,38 +261,26 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                 maxZoom: 18
             }));
 
-            ITOMapDistribution = {
+            OpenInfrastructureMap = {
                     getTileUrl: function(coord, zoom) {
                         //wrap tiles
                         var numTiles = 1 << zoom;
                         var x = ((coord.x % numTiles) + numTiles) % numTiles;
-                        return "http://t" + Math.floor(Math.random()*4) + ".beta.itoworld.com/4/770fc0c2b467b4cb16c330d996e2ddd2/" 
+			// randomly pick one of the tile servers 
+			var tile_server_prefixes = "abcd";
+			var tile_server_prefix = tile_server_prefixes.charAt(Math.floor(Math.random() * 4));
+                        return "https://tiles-" + tile_server_prefix + ".openinframap.org/power/" 
                                 + zoom + "/" + x + "/" + coord.y + ".png";
                     },
                     tileSize: new google.maps.Size(256, 256),
                     isPng: true,
                     opacity: 1,
-                    alt: "ITOWorld Electricity Distribution",
-                    name: "ITOWorldElectricityDistribution"
-            }
-
-            ITOMapGeneration = {
-                    getTileUrl: function(coord, zoom) {
-                        //wrap tiles
-                        var numTiles = 1 << zoom;
-                        var x = ((coord.x % numTiles) + numTiles) % numTiles;
-                        return "http://t" + Math.floor(Math.random()*4) + ".beta.itoworld.com/106/ca6f00c8cb88a79ff7c9be4b2343e9f4/" 
-                                + zoom + "/" + x + "/" + coord.y + ".png";
-                    },
-                    tileSize: new google.maps.Size(256, 256),
-                    isPng: true,
-                    opacity: 1,
-                    alt: "ITOWorld Electricity Generation",
-                    name: "ITOWorldElectricityGeneration"
+                    alt: "Open Infrastructure Map",
+                    name: "OpenInfrastructureMap"
             }
 
             //Default ITO Map layer
-            map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(ITOMapDistribution));
+            map.overlayMapTypes.insertAt(0, new google.maps.ImageMapType(OpenInfrastructureMap));
            
 
         //Allow users to search for places
@@ -326,8 +312,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
             $('#openstreetmap_map_link').prop('href', 'http://www.openstreetmap.org/?mlon='+lng+'&mlat='+lat+'&zoom=' + map.getZoom());
             $('#wikimapia_map_link').prop('href', 'http://wikimapia.org/#lang=en&lat='+lat+'&lon='+lng+'&z=' + map.getZoom() + '&m=b');
             $('#wikipedia_map_link').prop('href', 'http://toolserver.org/~kolossos/openlayers/kml-on-ol.php?lat='+lat+'&lon='+lng+'&zoom=' + map.getZoom() + '&lang=en');
-            $('#ITOMapDistribution_link').prop('href', "http://www.itoworld.com/map/4?lon=" + lng + "&lat=" + lat + "&zoom=" + map.getZoom());
-            $('#ITOMapGeneration_link').prop('href', "http://www.itoworld.com/map/106?lon=" + lng + "&lat=" + lat + "&zoom=" + map.getZoom());
+            $('#OpenInfrastructureMap_link').prop('href', "https://openinframap.org/#lat=" + lat + "&lng=" + lng + "&z=" + map.getZoom());
             $('#current_coordinates_display').text(lat + ", " + lng);
         });
 
@@ -456,7 +441,7 @@ prop:Annual_Energyoutput_MWh needs to be made optional in the sparql query (this
                             "  ?ppl rdf:type cat:Powerplant .\n" + 
                             ((country != "" || (owner == "" && useBounds == false)) ? "  ?ppl prop:Country a:" + country + " .\n" : "") + 
                             "  ?ppl rdfs:label ?name .\n" + 
-                            "  OPTIONAL{ ?ppl prop:Ownercompany ?own . ?own rdfs:label ?owner . } .\n" + 
+                            "  OPTIONAL{ ?ppl prop:Ownercompany ?own . ?own rdfs:label ?owner .} .\n" + 
                             "  OPTIONAL{ ?ppl prop:Status ?status } .\n" + 
                             "  OPTIONAL{ ?ppl prop:City ?town } .\n" + 
                             "  ?ppl prop:Point ?point .\n" + 
@@ -960,13 +945,15 @@ POST requests are ok, but these can't be done through jQuery since it doesn't br
 			<option value="Google Map">Google Map</option>
 			<option value="Google Terrain">Google Terrain</option>
 			<option value="OpenStreetMap">OpenStreetMap</option>
+			<!-- Need to find new URL for Black Marble -->
+			<!--
 			<option value="NASA Black Marble">NASA Black Marble</option>
+			-->
 		</select>
 
 Layers:</td>
         <td><font size=1>
-            <input type="checkbox" id="ITOMapDistribution_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power distribution (<a href="http://www.itoworld.com/map/4" id="ITOMapDistribution_link" target="_window">Source</a>)
-            <input type="checkbox" id="ITOMapGeneration_checkbox" onchange="updateITOMapLayersDisplayed(this)">ITOWorld power generation (<a href="http://www.itoworld.com/map/106" id="ITOMapGeneration_link" target="_window">Source</a>)
+            <input type="checkbox" id="OpenInfrastructureMap_checkbox" onchange="updateMapLayersDisplayed(this)">Open Infrastructure Map (<a href="https://openinframap.org" id="OpenInfrastructureMap_link" target="_window">Source</a>)
              </font>
         </td>
         <td><font size=1>Current Coords: <div id='current_coordinates_display'></div></font></td>
@@ -976,3 +963,4 @@ Layers:</td>
     </div>
     </body>
 </html>
+
